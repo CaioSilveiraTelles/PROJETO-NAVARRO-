@@ -1,0 +1,143 @@
+﻿@page "/todo"
+
+@using BlazorToDoList.App.Services
+@using BlazorToDoList.App.Models
+@inject IToDoService ToDoService
+
+<h1>To-Do List</h1>
+
+@if (items == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!items.Any())
+{
+    <p><em>Sem Itens Adicione Novos</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Remover</th>
+                <th>
+                    <span class="sort-link" @onclick=@(() => SortTable("DateCreated"))>Data</span>
+                    <span class="fa @(GetSortStyle("DateCreated"))"></span>
+                </th>
+                <th>
+                    <span class="sort-link" @onclick=@(() => SortTable("Description"))>Descrição</span>
+                    <span class="fa @(GetSortStyle("Description"))"></span>
+                </th>
+                <th>Foi Realizado ?</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in items)
+            {
+                <tr style="@(item.IsComplete ? "text-decoration: line-through" : "")">
+                    <td><button @onclick="(() => RemoveTodo(item.ID))"><i class="oi oi-trash"></i></button></td>
+                    <td>@item.DateCreated</td>
+                    <td>@item.Description</td>
+                    <td>
+                        @if (item.IsComplete)
+                        {
+                            <input type=checkbox @onchange="(() => ToggleToDo(item.ID))" checked />
+                        }
+                        else
+                        {
+                            <input type=checkbox @onchange="(() => ToggleToDo(item.ID))" />
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<!--Função para mensagem de Vazio
+-->
+@if (items != null)
+{
+    <input placeholder="Adicione o nome aqui" @bind="@newItem" />
+    <button @onclick="AddTodo">Adicionar</button>
+}
+
+@code{
+    List<ToDoItem> items = new List<ToDoItem>();
+    private string newItem;
+    private bool IsSortedAscending;
+    private string CurrentSortColumn;
+
+    protected override void OnInitialized()
+    {
+        items = ToDoService.Get();
+    }
+
+    private void AddTodo()
+    {
+        if (!string.IsNullOrWhiteSpace(newItem))
+        {
+            var newToDoItem = new ToDoItem()
+            {
+                DateCreated = DateTime.Now,
+                Description = newItem,
+                ID = Guid.NewGuid()
+            };
+
+            items = ToDoService.Add(newToDoItem);
+
+            newItem = string.Empty;
+        }
+    }
+
+    private void ToggleToDo(Guid id)
+    {
+        items = ToDoService.Toggle(id);
+    }
+
+    private void RemoveTodo(Guid id)
+    {
+        items = ToDoService.Delete(id);
+    }
+
+    private string GetSortStyle(string columnName)
+    {
+        if (CurrentSortColumn != columnName)
+        {
+            return string.Empty;
+        }
+        if (IsSortedAscending)
+        {
+            return "fa-sort-up";
+        }
+        else
+        {
+            return "fa-sort-down";
+        }
+    }
+
+    private void SortTable(string columnName)
+    {
+        if (columnName != CurrentSortColumn)
+        {
+
+            items = items.OrderBy(x => x.GetType().GetProperty(columnName).GetValue(x, null)).ToList();
+            CurrentSortColumn = columnName;
+            IsSortedAscending = true;
+
+        }
+        else
+        {
+            if (IsSortedAscending)
+            {
+                items = items.OrderByDescending(x => x.GetType().GetProperty(columnName).GetValue(x, null)).ToList();
+            }
+            else
+            {
+                items = items.OrderBy(x => x.GetType().GetProperty(columnName).GetValue(x, null)).ToList();
+            }
+
+            IsSortedAscending = !IsSortedAscending;
+        }
+    }
+}
